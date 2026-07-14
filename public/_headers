@@ -1,0 +1,30 @@
+# Security headers. Copied verbatim into the build output, applied to every
+# response.
+#
+# The CSP is the trust ladder, enforced by the browser rather than promised in a
+# privacy policy. `connect-src` is an ALLOWLIST of every host this app may ever
+# talk to. If a host is not on this line, the browser refuses the request — so a
+# tampered script cannot exfiltrate a passphrase, a balance, or an address to
+# anywhere else.
+#
+# Every entry below must be justifiable as a tier on the ladder (see CLAUDE.md).
+# Adding a host here is a security decision, not a config tweak. Review it.
+#
+#   'self'                    — the app's own origin (and, later, our sync server,
+#                               which only ever sees ciphertext).
+#   blockstream.info          — tier 1. Public Bitcoin chain data. Learns which
+#                               BTC addresses you watch. Nothing else.
+#   cloudflare-eth.com        — tier 1. Public Ethereum JSON-RPC. Same deal.
+#   api.coingecko.com         — tier 1. Public market prices. Learns which assets
+#                               you hold, NOT how much.
+#
+# There is no analytics host here, and there never will be. There is no font CDN
+# here either — fonts are system-native, so `font-src 'self'` can stay absolute.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://blockstream.info https://cloudflare-eth.com https://api.coingecko.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=()
+  Cross-Origin-Opener-Policy: same-origin

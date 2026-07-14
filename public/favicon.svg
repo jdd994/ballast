@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Ballast: the weight carried low that keeps you upright.
+       A brass mass, wide at the base, resting below the waterline. -->
+  <rect width="64" height="64" rx="14" fill="#0F1512"/>
+
+  <!-- the waterline: a slow wave, not a ruled line -->
+  <path d="M8 24 q6 -4 12 0 t12 0 t12 0 t12 0"
+        fill="none" stroke="#C9A961" stroke-width="2.4" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- the ballast: low centre of gravity, sitting under the surface -->
+  <path d="M24 34 h16 l6 16 a3 3 0 0 1 -3 4 h-22 a3 3 0 0 1 -3 -4 z"
+        fill="#C9A961"/>
+</svg>
