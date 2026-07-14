@@ -8,6 +8,8 @@ import { AddAccount, UpdateBalance } from "./components/AddAccount";
 import { Goals, AddGoal } from "./components/Goals";
 import { Spending, ReceiptView } from "./components/Spending";
 import { AddExpense } from "./components/AddExpense";
+import { Support } from "./components/Support";
+import { Heart } from "./components/icons";
 import type { SnapshotContent } from "./lib/ledger";
 
 type Tab = "worth" | "spending";
@@ -20,6 +22,7 @@ export default function App() {
   const [addingExpense, setAddingExpense] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<string | null>(null);
+  const [support, setSupport] = useState(false);
 
   async function viewReceipt(mediaId: string) {
     setReceipt(await l.loadReceipt(mediaId));
@@ -65,6 +68,14 @@ export default function App() {
               Quick unlock
             </button>
           ) : null}
+          <button
+            className="btn btn-ghost btn-sm heart"
+            onClick={() => setSupport(true)}
+            title="Support Ballast"
+            aria-label="Support Ballast"
+          >
+            <Heart />
+          </button>
           <button className="btn btn-sm" onClick={l.lock} title="Lock the vault">
             Lock
           </button>
@@ -157,6 +168,8 @@ export default function App() {
       ) : null}
 
       {receipt ? <ReceiptView src={receipt} onClose={() => setReceipt(null)} /> : null}
+
+      {support ? <Support onClose={() => setSupport(false)} /> : null}
 
       {adding ? (
         <AddAccount

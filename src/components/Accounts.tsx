@@ -7,6 +7,7 @@ import { ACCOUNT_KINDS, type AccountValue } from "../lib/ledger";
 import { connectorFor, isRefreshable } from "../lib/sources";
 import { TrustBadge } from "./TrustBadge";
 import { relative } from "./Waterline";
+import { Refresh } from "./icons";
 
 export function Accounts({
   valued,
@@ -87,7 +88,7 @@ export function Accounts({
                   disabled={busy}
                   title="Read the current balance from the chain"
                 >
-                  ↻
+                  <Refresh />
                 </button>
               ) : (
                 <button

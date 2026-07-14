@@ -21,6 +21,7 @@ import {
   type Transaction,
 } from "../lib/spend";
 import { relative } from "./Waterline";
+import { Receipt } from "./icons";
 
 export function Spending({
   transactions,
@@ -178,7 +179,7 @@ function Row({
               onClick={() => onViewReceipt(t.receiptId!)}
               title="View the receipt"
             >
-              ▨
+              <Receipt />
             </button>
           ) : null}
         </div>

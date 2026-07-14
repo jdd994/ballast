@@ -17,6 +17,7 @@ import { readReceipt } from "../lib/receipt";
 import { compressImage, dataUrl } from "../lib/media";
 import type { Account } from "../lib/ledger";
 import { TrustBadge } from "./TrustBadge";
+import { Receipt } from "./icons";
 
 function today(): string {
   return dateKey(new Date());
@@ -171,7 +172,7 @@ export function AddExpense({
               disabled={reading}
             >
               <span className="receipt-icon" aria-hidden="true">
-                ▨
+                <Receipt size={24} />
               </span>
               <span>
                 {reading ? "Reading…" : "Photograph the receipt"}

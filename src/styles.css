@@ -557,6 +557,8 @@ input.mono, input[inputmode="decimal"] {
   background: var(--bg-raised);
 }
 .sheet h3 { margin: 0 0 18px; font-size: 18px; font-weight: 500; }
+.sheet p { font-size: 13.5px; line-height: 1.65; color: var(--ink-soft); margin: 0 0 14px; }
+.sheet p strong { color: var(--ink); font-weight: 600; }
 .sheet-actions {
   display: flex;
   gap: 9px;
@@ -776,3 +778,79 @@ input.mono, input[inputmode="decimal"] {
   border-radius: var(--radius);
   border: 1px solid var(--line);
 }
+
+/* ---------- support ----------
+   No payment widget, no third-party script, no CSP exception. Copyable addresses
+   and one plain outbound link — so tipping cannot cost you any privacy. */
+.heart {
+  font-size: 15px;
+  line-height: 1;
+  padding: 7px 10px;
+  color: var(--ink-faint);
+}
+.heart:hover { color: var(--brass); background: var(--brass-dim); }
+
+.support-block {
+  margin: 20px 0;
+  padding: 15px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.support-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+.support-label {
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.support-addr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 7px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-raised);
+  text-align: left;
+}
+.support-addr:hover { border-color: var(--brass); }
+.support-addr-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.support-copy {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--brass);
+}
+
+.support-fiat {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: var(--brass);
+  text-decoration: none;
+}
+.support-fiat:hover { text-decoration: underline; }
+
+.support-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px !important;
+  line-height: 1.6;
+  color: var(--ink-faint) !important;
+}
+.support-note .tier { flex-shrink: 0; margin-top: 1px; }
