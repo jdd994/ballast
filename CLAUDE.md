@@ -129,6 +129,12 @@ user-aligned. And it must look exactly as alarming as it is.
    credential. A server compromise must yield only unreadable ciphertext.
 6. **No third party sees a receipt photo.** Ever. See `receipt.ts`.
 
+## Licence
+
+**AGPL-3.0** (same as Driftless). The licence is load-bearing, not a formality: a
+permissive licence would explicitly allow the thing this project exists to refuse
+— a fork with affiliate links, run as a closed service. Do not change it to MIT.
+
 ## Conventions
 
 - TypeScript strict is on. Keep it green.

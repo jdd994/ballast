@@ -11,3 +11,7 @@ dist-ssr
 # Never commit real financial data. Exports and backups stay out of git.
 *.ballast
 backups/
+
+# Emitted by the composite tsc -b build (tsconfig.node.json)
+vite.config.js
+vite.config.d.ts

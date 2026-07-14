@@ -88,4 +88,30 @@ See [CLAUDE.md](CLAUDE.md) for the architecture and the invariants.
 
 ## Licence
 
-MIT.
+**AGPL-3.0**, the same as [Driftless](../driftless).
+
+The licence is doing the same job as the encryption and the Content Security
+Policy: making a promise *structural* instead of merely stated.
+
+A permissive licence would explicitly allow the one thing Ballast exists to
+refuse — someone forking it, bolting on affiliate links and product
+recommendations, running it as a service, and never sharing a line back. The AGPL
+closes that door, including the network loophole: if you run a modified Ballast as
+a service, you have to publish your changes.
+
+You can use it, run it, fork it, and audit it. You cannot quietly turn it into the
+thing it was built to be an alternative to.
+
+## Auditing it
+
+An end-to-end-encrypted app that asks you to trust it, without letting you check,
+is asking for something it hasn't earned. The parts worth reading:
+
+- [`src/lib/crypto.ts`](src/lib/crypto.ts) — key derivation and encryption. `sealJSON`/`openJSON` are the
+  only doors between plaintext and storage.
+- [`src/hooks/useLedger.ts`](src/hooks/useLedger.ts) — the only place the key exists. If plaintext can only
+  leave memory through one file, verifying it never reaches disk means reading
+  one file.
+- [`public/_headers`](public/_headers) — the Content Security Policy. Every host the app is permitted
+  to contact, in one line. There is no analytics host, and there never will be.
+- [`SECURITY.md`](SECURITY.md) — what's encrypted, what isn't, and what we don't defend against.
