@@ -26,6 +26,14 @@ Sibling project to [Driftless](../driftless). Same soul, different job.
 - **Spending.** Photograph a receipt, log what it was, and watch a categoriser
   learn *your* merchants over time — locally, encrypted, never shared.
 
+## What it's for
+
+**The north star is gratitude and helping people.**
+
+Not growth, not engagement, not revenue. If you open Ballast, see your situation
+clearly, feel a bit steadier, and then don't need it again for three months —
+that's the app working exactly as intended. It is not trying to keep you here.
+
 ## What it will never do
 
 No ads. No analytics. No affiliate links. **No product recommendations.**
@@ -38,6 +46,10 @@ will never tell you which credit card to get, because the moment it does, it has
 stopped working for you.
 
 You name the target. Ballast only ever tells you the truth about your trajectory.
+
+And it will never make you feel small. Being underwater is a fact, not a verdict.
+There are no streaks to break, no budgets you failed, no red alerts. Shame is not
+a financial planning tool.
 
 ## The trust ladder
 

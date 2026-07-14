@@ -16,10 +16,35 @@ go.** It is local-first and end-to-end encrypted. Sync is the main open chapter.
 
 ## Purpose (the north star)
 
-Personal finance software has a default business model: get access to your
-transaction data, then sell you products — a card, a loan, a robo-advisor — and
-take a referral fee. Every "insight" in that world is an advertisement wearing a
-lab coat. Ballast inverts it, the way Driftless inverts social media:
+**The north star is gratitude and helping people.**
+
+Not growth, not engagement, not revenue, not even privacy — privacy is a means,
+not the end. Ballast exists to *actually make someone's life better*, and to be
+grateful that they let it try. Everything else in this document is downstream of
+that sentence, and if a decision ever seems to conflict with it, that sentence
+wins.
+
+Two practical consequences, because a north star that doesn't change decisions
+isn't one:
+
+- **Helping people is measured by whether their life is better, not by whether
+  they came back.** A person who opens Ballast, sees clearly, feels steadier, and
+  then doesn't need it for three months is a *success*. Never optimise for
+  retention. An app that needed you to keep coming back would start doing the
+  things that make people keep coming back, and those things are all bad.
+- **Gratitude points outward.** The user gave us their attention and their trust
+  with the most sensitive data they have. That debt is already settled by them
+  showing up. Anything they give back is a bonus on top — never an expectation,
+  never a nag, never a thing withheld until they do. See `Support.tsx`.
+
+This is Driftless's *"love is the point"* wearing work clothes. Same star.
+
+It also explains the shape of everything below. Personal finance software has a
+default business model: get access to your transaction data, then sell you
+products — a card, a loan, a robo-advisor — and take a referral fee. Every
+"insight" in that world is an advertisement wearing a lab coat. That business
+model cannot coexist with gratitude and helping people, so Ballast inverts it,
+the way Driftless inverts social media:
 
 - **Awareness over advice.** Show people their own money clearly. Clarity is the
   product. The app never recommends a financial product, ever.

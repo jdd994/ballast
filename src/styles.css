@@ -845,6 +845,28 @@ input.mono, input[inputmode="decimal"] {
 }
 .support-fiat:hover { text-decoration: underline; }
 
+.support-sub {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-faint);
+  margin: 22px 0 12px;
+}
+
+.support-intro {
+  font-size: 13px !important;
+  line-height: 1.6;
+  color: var(--ink-soft) !important;
+  margin: 0 0 14px !important;
+}
+
+.support-note-plain {
+  font-size: 13px !important;
+  line-height: 1.65;
+  color: var(--ink-soft) !important;
+}
+
 .support-note {
   display: flex;
   align-items: flex-start;

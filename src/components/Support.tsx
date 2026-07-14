@@ -1,19 +1,31 @@
 // Support.tsx
-// The tip jar, and the honest answer to "so how does this survive?"
+// A DISCLOSURE that happens to contain a tip jar. Not an appeal.
 //
-// Every other finance app has an obvious answer to that question: it gets paid a
-// referral fee when you take out the card it recommended. Ballast refuses that
-// money on purpose (see CLAUDE.md), which means it has no revenue at all unless
-// someone chooses to give it some.
+// The distinction is the whole design of this file, so it's worth being explicit
+// about, because the obvious version of this screen is subtly manipulative and it
+// would be easy to write by accident (the first draft of this file did):
 //
-// Two things make this different from Driftless's tip jar, and both matter:
+//   ✗ "This is only kept alive by people like you chipping in."
 //
-//   1. **The people using this app may be broke.** That is not a hypothetical —
-//      it is arguably the core user. A finance app that makes someone feel bad
-//      for not tipping is doing the exact thing the app exists to refuse. So the
-//      copy says, plainly and first, that if money is tight they should keep it.
-//      Shame is not a financial planning tool, and that rule doesn't get
-//      suspended when it's our own hand out.
+// That is the public-radio pledge drive. It implies that not tipping kills the
+// thing, which manufactures an obligation — and it isn't even true. Ballast is a
+// static page that runs on the user's own device. Hosting is free. There is no
+// company, no salary, no runway. **Nothing is at stake**, and saying so plainly
+// is what removes the pressure.
+//
+// So this screen's job is to answer "how is this paid for, and what's the catch?"
+// — a question a person is right to ask of any free finance app. The jar sits at
+// the bottom of the answer. It is not the point of the screen.
+//
+// Two rules for anything ever added here:
+//
+//   1. **Never create an expectation.** No "help us keep going", no funding goal,
+//      no thermometer, no counter, no "X people have supported", no perks, no
+//      nag, no reminder, no badge for tippers. Nothing is withheld from anyone,
+//      ever. And the people using this app may well be broke — that is arguably
+//      the core user. An app whose stated rule is that shame is not a financial
+//      planning tool does not get to suspend that rule when it's our own hand
+//      out.
 //
 //   2. **No payment processor, no widget, no script.** Copyable addresses and one
 //      outbound link. Nothing here can see your finances, nothing loads a
@@ -62,30 +74,49 @@ export function Support({ onClose }: { onClose: () => void }) {
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <h3>Support Ballast</h3>
+        {/* A disclosure, not an appeal. The heading matters: "Support Ballast" is
+            an ask before you've read a word. This is the question a person is
+            right to have about any free finance app. */}
+        <h3>Thank you for using it</h3>
 
-        {/* First, before any ask. Someone reading this may be the person who
-            needs the app most, and they should not feel got at. */}
-        <div className="trade">
-          <strong>If money is tight, keep it.</strong> Genuinely. You're using an app about
-          getting steady with your money — if you're not there yet, the last thing you need is
-          us with our hand out. Ballast is free and stays free, and nothing is withheld from
-          you. Come back when you're comfortable, or don't. It's fine either way.
-        </div>
+        {/* The gratitude points OUTWARD. That's the north star, and it's why this
+            screen opens by thanking the user rather than by asking them for
+            anything. Somebody sitting down to look honestly at their money — and
+            trusting this thing to help them do it — is the whole reason it exists.
+            Anything they give back is a bonus on top of a debt already settled. */}
+        <p>
+          Really. Sitting down to look honestly at your own money takes something, and choosing
+          to trust this to help you do it is not nothing. That's the entire reason Ballast was
+          built, and you doing it is the thanks.
+        </p>
+
+        <h4 className="support-sub">How it's paid for</h4>
 
         <p>
-          Here's the honest version of how this works. Most money apps are free because they
-          get paid a referral fee when you take out the card they recommended. That's why the
-          "insights" always end in a product.
+          It isn't, really — and that's rather the point. There's no company here, no
+          investors, and no salary. Ballast is a static page that runs entirely on your device,
+          so keeping it online costs close to nothing.
         </p>
         <p>
-          <strong>Ballast refuses that money.</strong> No ads, no affiliate links, no product
-          recommendations, no analytics, and nobody buying a look at your spending — because
-          nobody <em>can</em> look at it. Which leaves exactly one way for it to keep going:
-          people who find it useful, chipping in if they can.
+          Which is worth saying plainly: <strong>nothing is at stake.</strong> There's no
+          runway, no funding goal, nothing to rescue. If nobody ever gives a penny, Ballast
+          carries on exactly as it is, free, with nothing held back from anyone.
+        </p>
+        <p>
+          The reason it has no income is deliberate. Most money apps are free because they take
+          a referral fee when you open the card they recommended — which is why the "insights"
+          always end in a product. <strong>Ballast refuses that money:</strong> no ads, no
+          affiliate links, no product recommendations, no analytics, and nobody buying a look at
+          your spending, because nobody <em>can</em> look at it.
         </p>
 
         <div className="support-block">
+          {/* The jar. Deliberately below the answer, not above it. */}
+          <p className="support-intro">
+            There's a jar, if you ever feel like it. It's genuinely appreciated — not because
+            it's needed, but because it's a kind thing to do, and it makes the next project
+            easier to start.
+          </p>
           <CopyRow label="Bitcoin" value={SUPPORT.btc} />
           <CopyRow label="Ethereum" value={SUPPORT.eth} />
           <a
@@ -94,14 +125,22 @@ export function Support({ onClose }: { onClose: () => void }) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Prefer a card? Support on Ko-fi →
+            Prefer a card? Ko-fi →
           </a>
         </div>
 
+        {/* Someone reading this may be the person the app is most for. They should
+            not feel got at, and they get exactly the same app either way. */}
+        <p className="support-note-plain">
+          And if money is tight, keep it — genuinely. You'd get nothing extra for giving, and
+          nothing is withheld if you don't. This is an app about getting steady with your money;
+          if you're not there yet, that's precisely who it was built for.
+        </p>
+
         <p className="support-note">
-          <TrustBadge tier={0} /> Tipping changes nothing about your privacy. There's no payment
-          widget here and no third-party script — just addresses you can copy and a plain link.
-          Ballast still can't see your money, and neither can we.
+          <TrustBadge tier={0} /> None of this costs you any privacy. There's no payment widget
+          and no third-party script — just addresses you can copy and a plain link. Ballast
+          still can't see your money, and neither can we.
         </p>
 
         <div className="sheet-actions">

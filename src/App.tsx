@@ -71,8 +71,8 @@ export default function App() {
           <button
             className="btn btn-ghost btn-sm heart"
             onClick={() => setSupport(true)}
-            title="Support Ballast"
-            aria-label="Support Ballast"
+            title="How Ballast is paid for"
+            aria-label="How Ballast is paid for"
           >
             <Heart />
           </button>
