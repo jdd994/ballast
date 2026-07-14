@@ -105,6 +105,23 @@ export async function openJSON<T>(key: CryptoKey, blob: CipherBlob): Promise<T> 
   return JSON.parse(await decryptString(key, blob)) as T;
 }
 
+// ---- Binary encryption (receipt photos) ---------------------------------
+// Images are raw bytes. IndexedDB stores ArrayBuffers efficiently, so they skip
+// the number[] shape that small text blobs use. A receipt is ciphertext at rest
+// exactly like a balance is — it names the merchant, the items, the time, and
+// often the last four digits of a card.
+export type CipherBytes = { iv: Uint8Array; data: ArrayBuffer };
+
+export async function encryptBytes(key: CryptoKey, bytes: ArrayBuffer): Promise<CipherBytes> {
+  const iv = randomBytes(12);
+  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv: toBuf(iv) }, key, bytes);
+  return { iv, data };
+}
+
+export async function decryptBytes(key: CryptoKey, blob: CipherBytes): Promise<ArrayBuffer> {
+  return crypto.subtle.decrypt({ name: "AES-GCM", iv: toBuf(blob.iv) }, key, blob.data);
+}
+
 // ---- Raw key export/import + wrapping (for biometric unlock) ------------
 
 export async function exportKeyRaw(key: CryptoKey): Promise<number[]> {

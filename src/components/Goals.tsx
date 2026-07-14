@@ -12,7 +12,7 @@
 import { useState } from "react";
 import { formatMoney, parseMoney, type Goal, type GoalKind, type Progress } from "../lib/money";
 import type { Account, AccountValue, GoalContent } from "../lib/ledger";
-import { goalCurrentValue } from "../lib/ledger";
+import { goalStartValue } from "../lib/ledger";
 
 const KIND_LABELS: Record<GoalKind, { label: string; blurb: string }> = {
   save: { label: "Save toward", blurb: "Build something up — a fund, a deposit, a cushion." },
@@ -204,12 +204,9 @@ export function AddGoal({
 
     // The baseline. Progress is measured from where these accounts stand RIGHT
     // NOW — so a goal is always honest about what it can claim credit for. It
-    // cannot retroactively take credit for money you already had.
-    const startValue = goalCurrentValue(
-      { id: "", name: "", kind, target: parsed, startValue: { minor: 0, currency }, startAt: 0, accountIds: selected },
-      valued,
-      currency
-    );
+    // cannot retroactively take credit for money you already had, and a spend
+    // goal starts from zero rather than from your card's current balance.
+    const startValue = goalStartValue({ kind, accountIds: selected }, valued, currency);
 
     await onAdd({
       name: name.trim(),

@@ -6,13 +6,24 @@ import { Waterline } from "./components/Waterline";
 import { Accounts } from "./components/Accounts";
 import { AddAccount, UpdateBalance } from "./components/AddAccount";
 import { Goals, AddGoal } from "./components/Goals";
+import { Spending, ReceiptView } from "./components/Spending";
+import { AddExpense } from "./components/AddExpense";
 import type { SnapshotContent } from "./lib/ledger";
+
+type Tab = "worth" | "spending";
 
 export default function App() {
   const l = useLedger();
+  const [tab, setTab] = useState<Tab>("worth");
   const [adding, setAdding] = useState(false);
   const [addingGoal, setAddingGoal] = useState(false);
+  const [addingExpense, setAddingExpense] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<string | null>(null);
+
+  async function viewReceipt(mediaId: string) {
+    setReceipt(await l.loadReceipt(mediaId));
+  }
 
   if (l.status === "loading") return null;
 
@@ -64,31 +75,88 @@ export default function App() {
 
       <Waterline net={l.net} currency={l.currency} asOf={lastUpdate} />
 
-      <section className="section">
-        <div className="section-head">
-          <h2 className="section-title">Accounts</h2>
-          <button className="btn btn-sm" onClick={() => setAdding(true)}>
-            Add
-          </button>
-        </div>
-        <Accounts
-          valued={l.valued}
-          busy={l.busy}
-          onRefresh={(id) => void l.refreshAccount(id)}
-          onRemove={(id) => void l.removeAccount(id)}
-          onUpdate={setUpdating}
-        />
-      </section>
+      <nav className="tabs">
+        <button
+          className="tab"
+          aria-pressed={tab === "worth"}
+          onClick={() => setTab("worth")}
+        >
+          Worth
+        </button>
+        <button
+          className="tab"
+          aria-pressed={tab === "spending"}
+          onClick={() => setTab("spending")}
+        >
+          Spending
+        </button>
+      </nav>
 
-      <section className="section">
-        <div className="section-head">
-          <h2 className="section-title">Goals</h2>
-          <button className="btn btn-sm" onClick={() => setAddingGoal(true)} disabled={!l.accounts.length}>
-            Add
-          </button>
-        </div>
-        <Goals goals={l.goals} progressFor={l.progressFor} onRemove={(id) => void l.removeGoal(id)} />
-      </section>
+      {tab === "worth" ? (
+        <>
+          <section className="section">
+            <div className="section-head">
+              <h2 className="section-title">Accounts</h2>
+              <button className="btn btn-sm" onClick={() => setAdding(true)}>
+                Add
+              </button>
+            </div>
+            <Accounts
+              valued={l.valued}
+              busy={l.busy}
+              onRefresh={(id) => void l.refreshAccount(id)}
+              onRemove={(id) => void l.removeAccount(id)}
+              onUpdate={setUpdating}
+            />
+          </section>
+
+          <section className="section">
+            <div className="section-head">
+              <h2 className="section-title">Goals</h2>
+              <button
+                className="btn btn-sm"
+                onClick={() => setAddingGoal(true)}
+                disabled={!l.accounts.length}
+              >
+                Add
+              </button>
+            </div>
+            <Goals
+              goals={l.goals}
+              progressFor={l.progressFor}
+              onRemove={(id) => void l.removeGoal(id)}
+            />
+          </section>
+        </>
+      ) : (
+        <section className="section">
+          <div className="section-head">
+            <h2 className="section-title">Spending</h2>
+            <button className="btn btn-sm" onClick={() => setAddingExpense(true)}>
+              Log
+            </button>
+          </div>
+          <Spending
+            transactions={l.transactions}
+            currency={l.currency}
+            onRemove={(id) => void l.removeTransaction(id)}
+            onViewReceipt={(id) => void viewReceipt(id)}
+          />
+        </section>
+      )}
+
+      {addingExpense ? (
+        <AddExpense
+          currency={l.currency}
+          accounts={l.accounts}
+          busy={l.busy}
+          suggest={l.suggest}
+          onAdd={l.addTransaction}
+          onClose={() => setAddingExpense(false)}
+        />
+      ) : null}
+
+      {receipt ? <ReceiptView src={receipt} onClose={() => setReceipt(null)} /> : null}
 
       {adding ? (
         <AddAccount

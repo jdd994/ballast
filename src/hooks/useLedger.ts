@@ -42,6 +42,10 @@ import { goalProgress, type Goal, type NetWorth, type Progress } from "../lib/mo
 import { connectorFor } from "../lib/sources";
 import { clearPriceCache, fetchPrices } from "../lib/sources/prices";
 import { biometricSupported, enrollBiometric, unlockBiometric } from "../lib/biometric";
+import type { Transaction, TransactionContent } from "../lib/spend";
+import { remember, suggestCategory, type MerchantMemory, type Suggestion } from "../lib/categorize";
+import { compressImage, dataUrl } from "../lib/media";
+import { encryptBytes, decryptBytes } from "../lib/crypto";
 
 export type Status = "loading" | "setup" | "locked" | "unlocked";
 
@@ -53,6 +57,7 @@ export type Ledger = {
 
   accounts: Account[];
   snapshots: Snapshot[];
+  transactions: Transaction[];
   goals: Goal[];
   prices: Prices;
 
@@ -80,6 +85,17 @@ export type Ledger = {
 
   addGoal: (content: GoalContent) => Promise<void>;
   removeGoal: (id: string) => Promise<void>;
+
+  // Spending. `at` is passed separately because it is plaintext metadata (it
+  // indexes the store), not part of the encrypted payload — and because a
+  // receipt is usually from yesterday, not from now.
+  addTransaction: (content: TransactionContent, at: number, receipt?: File) => Promise<void>;
+  removeTransaction: (id: string) => Promise<void>;
+  // Decrypt a receipt photo into a data: URL for display. Nothing is cached to
+  // disk in the clear — the plaintext image exists only in the open <img>.
+  loadReceipt: (mediaId: string) => Promise<string | null>;
+  // What the categoriser thinks, and whether it learned it from you or guessed.
+  suggest: (merchant: string) => Suggestion | null;
 };
 
 const uid = () => crypto.randomUUID();
@@ -96,8 +112,10 @@ export function useLedger(): Ledger {
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [prices, setPrices] = useState<Prices>({});
+  const [memory, setMemory] = useState<MerchantMemory>({});
 
   const [canBiometric, setCanBiometric] = useState(false);
   const [hasBiometric, setHasBiometric] = useState(false);
@@ -125,10 +143,12 @@ export function useLedger(): Ledger {
   // ---- decrypt everything into memory ------------------------------------
 
   const loadAll = useCallback(async (key: CryptoKey) => {
-    const [sa, ss, sg] = await Promise.all([
+    const [sa, ss, st, sg, sm] = await Promise.all([
       db.allStoredAccounts(),
       db.allStoredSnapshots(),
+      db.allStoredTransactions(),
       db.allStoredGoals(),
+      db.getStoredMemory(),
     ]);
 
     const acc = await Promise.all(
@@ -147,6 +167,14 @@ export function useLedger(): Ledger {
           return { ...c, id: r.id, accountId: r.accountId, at: r.at };
         })
     );
+    const txns = await Promise.all(
+      st
+        .filter((r) => !r.deleted)
+        .map(async (r): Promise<Transaction> => {
+          const c = await openJSON<TransactionContent>(key, r.content);
+          return { ...c, id: r.id, at: r.at };
+        })
+    );
     const gl = await Promise.all(
       sg
         .filter((r) => !r.deleted)
@@ -158,7 +186,9 @@ export function useLedger(): Ledger {
 
     setAccounts(acc);
     setSnapshots(snaps);
+    setTransactions(txns);
     setGoals(gl);
+    setMemory(sm ? await openJSON<MerchantMemory>(key, sm.content) : {});
     return { acc, snaps };
   }, []);
 
@@ -280,12 +310,15 @@ export function useLedger(): Ledger {
   }, []);
 
   const lock = useCallback(() => {
-    // Drop the key and everything derived from it. After this the process holds
-    // no plaintext about the user's money.
+    // Drop the key and EVERYTHING derived from it. After this the process holds
+    // no plaintext about the user's money. If you add a piece of decrypted state
+    // above, it must be cleared here too — that is the whole contract of "lock".
     keyRef.current = null;
     setAccounts([]);
     setSnapshots([]);
+    setTransactions([]);
     setGoals([]);
+    setMemory({});
     setPrices({});
     clearPriceCache();
     setError(null);
@@ -420,6 +453,107 @@ export function useLedger(): Ledger {
     }
   }, [accounts, snapshots, currency, recordSnapshot, loadPrices]);
 
+  // ---- spending -----------------------------------------------------------
+
+  const addTransaction = useCallback(
+    async (content: TransactionContent, at: number, receipt?: File) => {
+      const key = keyRef.current;
+      if (!key) return;
+      setBusy(true);
+      setError(null);
+      try {
+        let receiptId: string | undefined;
+
+        // The photo. Downscaled, re-encoded, encrypted, stored. It never touches
+        // the network — there is no code path from here to a server, and the CSP
+        // would refuse one if there were.
+        if (receipt) {
+          const { bytes, type } = await compressImage(receipt);
+          const sealed = await encryptBytes(key, bytes);
+          receiptId = uid();
+          await db.putMedia({
+            id: receiptId,
+            type,
+            createdAt: Date.now(),
+            iv: sealed.iv,
+            data: sealed.data,
+            deleted: false,
+            dirty: true,
+          });
+        }
+
+        const full: TransactionContent = { ...content, receiptId };
+        const id = uid();
+
+        setTransactions((prev) => [...prev, { ...full, id, at }]);
+
+        await db.putStoredTransaction({
+          id,
+          at,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          deleted: false,
+          dirty: true,
+          content: await sealJSON(key, full),
+        });
+
+        // Teach the categoriser. Every confirmed category is a correction, which
+        // is why a hint the user accepts is promoted to something learned — and
+        // why the thing gets quietly better the more you use it.
+        if (content.merchant.trim()) {
+          const next = remember(content.merchant, content.category, memory);
+          setMemory(next);
+          await db.saveStoredMemory({
+            id: "memory",
+            updatedAt: Date.now(),
+            dirty: true,
+            content: await sealJSON(key, next),
+          });
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Couldn't save that.");
+        throw e;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [memory]
+  );
+
+  const removeTransaction = useCallback(async (id: string) => {
+    const target = (await db.allStoredTransactions()).find((t) => t.id === id);
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+    if (!target) return;
+
+    await db.putStoredTransaction({ ...target, deleted: true, dirty: true, updatedAt: Date.now() });
+
+    // The receipt photo goes with it. A tombstoned expense whose picture of your
+    // lunch is still sitting in the database is not a deletion.
+    const key = keyRef.current;
+    if (key) {
+      const content = await openJSON<TransactionContent>(key, target.content);
+      if (content.receiptId) await db.deleteMedia(content.receiptId);
+    }
+  }, []);
+
+  const loadReceipt = useCallback(async (mediaId: string): Promise<string | null> => {
+    const key = keyRef.current;
+    if (!key) return null;
+    const m = await db.getMedia(mediaId);
+    if (!m) return null;
+    try {
+      const bytes = await decryptBytes(key, { iv: m.iv, data: m.data });
+      return dataUrl(bytes, m.type);
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const suggest = useCallback(
+    (merchant: string): Suggestion | null => suggestCategory(merchant, memory),
+    [memory]
+  );
+
   const addGoal = useCallback(async (content: GoalContent) => {
     const key = keyRef.current;
     if (!key) return;
@@ -452,8 +586,8 @@ export function useLedger(): Ledger {
 
   const progressFor = useCallback(
     (goal: Goal): Progress =>
-      goalProgress(goal, goalCurrentValue(goal, valued, currency), Date.now()),
-    [valued, currency]
+      goalProgress(goal, goalCurrentValue(goal, valued, transactions, currency), Date.now()),
+    [valued, transactions, currency]
   );
 
   return {
@@ -463,6 +597,7 @@ export function useLedger(): Ledger {
     busy,
     accounts,
     snapshots,
+    transactions,
     goals,
     prices,
     valued,
@@ -483,5 +618,9 @@ export function useLedger(): Ledger {
     refreshAll,
     addGoal,
     removeGoal,
+    addTransaction,
+    removeTransaction,
+    loadReceipt,
+    suggest,
   };
 }

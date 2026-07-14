@@ -17,6 +17,9 @@ import {
   type Price,
   type Goal,
 } from "./money";
+import { isSpend, type Transaction } from "./spend";
+
+export type { Transaction, TransactionContent } from "./spend";
 
 // ---- The trust ladder ----------------------------------------------------
 // Every account carries the honest cost of having connected it. This is not a
@@ -209,7 +212,7 @@ export type GoalContent = Omit<Goal, "id">;
 
 // The present value of the accounts a goal watches. Accounts that can't be
 // priced are skipped, same honesty rule as above.
-export function goalCurrentValue(
+export function goalAccountValue(
   goal: Goal,
   valuedAccounts: AccountValue[],
   currency: string
@@ -220,5 +223,48 @@ export function goalCurrentValue(
   return watched.reduce<Money>(
     (acc, av) => ({ minor: acc.minor + av.value!.minor, currency }),
     zero(currency)
+  );
+}
+
+// What a goal has actually moved, in the terms `goalProgress` expects.
+//
+// Save and payoff goals read the account balance — the number went up, and by
+// how much. A SPEND goal reads the transactions instead, which is a real
+// improvement over inferring it from a balance swing: your card balance drops
+// when you pay it off, and a balance-derived spend goal would cheerfully count
+// that payment as "progress" toward a signup bonus. It isn't. Only actual
+// outgoing transactions count.
+export function goalCurrentValue(
+  goal: Goal,
+  valuedAccounts: AccountValue[],
+  transactions: Transaction[],
+  currency: string
+): Money {
+  if (goal.kind !== "spend") return goalAccountValue(goal, valuedAccounts, currency);
+
+  const spent = transactions
+    .filter(
+      (t) =>
+        t.at >= goal.startAt &&
+        isSpend(t) &&
+        (t.accountId === undefined || goal.accountIds.includes(t.accountId))
+    )
+    .reduce((acc, t) => acc + t.amount.minor, 0); // negative
+
+  return { minor: spent, currency };
+}
+
+// A spend goal's baseline is always zero: it measures money that goes out from
+// the moment the goal starts, and cannot take credit for spending you did before.
+export function goalStartValue(
+  goal: Pick<Goal, "kind" | "accountIds">,
+  valuedAccounts: AccountValue[],
+  currency: string
+): Money {
+  if (goal.kind === "spend") return zero(currency);
+  return goalAccountValue(
+    { ...(goal as Goal), id: "", name: "", target: zero(currency), startValue: zero(currency), startAt: 0 },
+    valuedAccounts,
+    currency
   );
 }

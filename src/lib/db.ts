@@ -13,18 +13,24 @@
 // sentence, and every store below is built to keep it true.
 //
 // Stores:
-//   - vault:     one record: salt + verifier + the wrapped identity key.
-//   - accounts:  one per account. content encrypts { name, kind, source, ... }.
-//   - snapshots: one per observation of an account's value at a point in time.
-//                This is what makes net worth a *history* and not just a number.
-//   - goals:     one per goal. content encrypts { name, target, deadline, ... }.
-//   - sync:      pull cursor + auth token. Unused until the sync engine lands.
-//   - device:    per-device biometric enrollment. Never synced.
+//   - vault:        one record: salt + verifier + the wrapped identity key.
+//   - accounts:     one per account. content encrypts { name, kind, source, ... }.
+//   - snapshots:    one per observation of an account's value at a point in time.
+//                   This is what makes net worth a *history*, not just a number.
+//   - transactions: one per expense/income. content encrypts amount, merchant,
+//                   category, note.
+//   - media:        encrypted receipt photos, as raw bytes.
+//   - memory:       the merchant -> category memory the categoriser learns. It is
+//                   encrypted like everything else: what you buy and where is at
+//                   least as revealing as how much.
+//   - goals:        one per goal.
+//   - sync:         pull cursor + auth token. Unused until the sync engine lands.
+//   - device:       per-device biometric enrollment. Never synced.
 
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { CipherBlob, WrappedKey } from "./crypto";
 
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export type VaultMeta = {
   id: "vault";
@@ -71,6 +77,38 @@ export type StoredSnapshot = Syncable & {
 // content encrypts a `GoalContent`.
 export type StoredGoal = Syncable & { content: CipherBlob };
 
+// content encrypts a `TransactionContent`. `at` is plaintext for the same reason
+// snapshots' is: cheap windowing without decrypting the whole ledger.
+export type StoredTransaction = Syncable & {
+  at: number;
+  content: CipherBlob;
+};
+
+// A receipt photo. Stored as encrypted raw bytes — IndexedDB holds ArrayBuffers
+// efficiently, so images don't go through the number[] shape small text blobs use.
+//
+// `type` (image/jpeg) is plaintext and harmless. The pixels are not: a receipt
+// names the merchant, the items, the time, and often the last four of your card.
+// It is ciphertext at rest and it never touches the network. See receipt.ts for
+// why there is no OCR service in this picture.
+export type StoredMedia = {
+  id: string;
+  type: string;
+  createdAt: number;
+  iv: Uint8Array;
+  data: ArrayBuffer; // ciphertext
+  deleted: boolean;
+  dirty: boolean;
+};
+
+// The categoriser's learned memory. One record, encrypted.
+export type StoredMemory = {
+  id: "memory";
+  updatedAt: number;
+  dirty: boolean;
+  content: CipherBlob; // encrypts a MerchantMemory
+};
+
 export type SyncState = {
   id: "state";
   cursor: number;
@@ -93,6 +131,9 @@ interface BallastDB extends DBSchema {
     value: StoredSnapshot;
     indexes: { byAccount: string; byTime: number };
   };
+  transactions: { key: string; value: StoredTransaction; indexes: { byTime: number } };
+  media: { key: string; value: StoredMedia };
+  memory: { key: string; value: StoredMemory };
   goals: { key: string; value: StoredGoal };
   sync: { key: string; value: SyncState };
   device: { key: string; value: DeviceEnrollment };
@@ -113,6 +154,14 @@ function db() {
           database.createObjectStore("goals", { keyPath: "id" });
           database.createObjectStore("sync", { keyPath: "id" });
           database.createObjectStore("device", { keyPath: "id" });
+        }
+        // v2: spend tracking — transactions, receipt photos, and the memory the
+        // categoriser builds.
+        if (oldVersion < 2) {
+          const txns = database.createObjectStore("transactions", { keyPath: "id" });
+          txns.createIndex("byTime", "at");
+          database.createObjectStore("media", { keyPath: "id" });
+          database.createObjectStore("memory", { keyPath: "id" });
         }
       },
     });
@@ -164,6 +213,40 @@ export async function putStoredGoal(g: StoredGoal): Promise<void> {
   await (await db()).put("goals", g);
 }
 
+// ---- transactions --------------------------------------------------------
+
+export async function allStoredTransactions(): Promise<StoredTransaction[]> {
+  return (await db()).getAllFromIndex("transactions", "byTime");
+}
+
+export async function putStoredTransaction(t: StoredTransaction): Promise<void> {
+  await (await db()).put("transactions", t);
+}
+
+// ---- media (receipt photos) ----------------------------------------------
+
+export async function putMedia(m: StoredMedia): Promise<void> {
+  await (await db()).put("media", m);
+}
+
+export async function getMedia(id: string): Promise<StoredMedia | undefined> {
+  return (await db()).get("media", id);
+}
+
+export async function deleteMedia(id: string): Promise<void> {
+  await (await db()).delete("media", id);
+}
+
+// ---- the categoriser's memory --------------------------------------------
+
+export async function getStoredMemory(): Promise<StoredMemory | undefined> {
+  return (await db()).get("memory", "memory");
+}
+
+export async function saveStoredMemory(m: StoredMemory): Promise<void> {
+  await (await db()).put("memory", m);
+}
+
 // ---- sync + device -------------------------------------------------------
 
 export async function getSyncState(): Promise<SyncState | undefined> {
@@ -190,28 +273,39 @@ export async function clearDevice(): Promise<void> {
 export async function dirtyRecords(): Promise<{
   accounts: StoredAccount[];
   snapshots: StoredSnapshot[];
+  transactions: StoredTransaction[];
   goals: StoredGoal[];
+  media: StoredMedia[];
 }> {
   const d = await db();
   return {
     accounts: (await d.getAll("accounts")).filter((r) => r.dirty),
     snapshots: (await d.getAll("snapshots")).filter((r) => r.dirty),
+    transactions: (await d.getAll("transactions")).filter((r) => r.dirty),
     goals: (await d.getAll("goals")).filter((r) => r.dirty),
+    media: (await d.getAll("media")).filter((r) => r.dirty && !r.deleted),
   };
 }
 
+// Every store, in one place. Both `wipe` and any future migration must cover all
+// of them — a "wipe" that leaves receipt photos behind would be a serious lie.
+const ALL_STORES = [
+  "vault",
+  "accounts",
+  "snapshots",
+  "transactions",
+  "media",
+  "memory",
+  "goals",
+  "sync",
+  "device",
+] as const;
+
 // Wipe everything. Used by "forget this device" — the local copy goes, and
-// without the passphrase nothing that remains anywhere is readable.
+// without the passphrase nothing that remains anywhere is readable anyway.
 export async function wipe(): Promise<void> {
   const d = await db();
-  const tx = d.transaction(["vault", "accounts", "snapshots", "goals", "sync", "device"], "readwrite");
-  await Promise.all([
-    tx.objectStore("vault").clear(),
-    tx.objectStore("accounts").clear(),
-    tx.objectStore("snapshots").clear(),
-    tx.objectStore("goals").clear(),
-    tx.objectStore("sync").clear(),
-    tx.objectStore("device").clear(),
-  ]);
+  const tx = d.transaction(ALL_STORES, "readwrite");
+  await Promise.all(ALL_STORES.map((s) => tx.objectStore(s).clear()));
   await tx.done;
 }

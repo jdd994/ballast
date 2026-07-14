@@ -588,3 +588,191 @@ input.mono, input[inputmode="decimal"] {
   color: var(--ink);
 }
 .choice-main { flex: 1; }
+
+/* ---------- tabs ---------- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 26px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.tab {
+  padding: 9px 15px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-faint);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab:hover { color: var(--ink-soft); }
+.tab[aria-pressed="true"] {
+  color: var(--brass);
+  border-bottom-color: var(--brass);
+}
+
+.section-note { font-size: 12.5px; color: var(--ink-faint); font-family: var(--mono); }
+
+/* ---------- spending ---------- */
+.spend-summary {
+  display: flex;
+  gap: 32px;
+  padding: 16px 0 20px;
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: 20px;
+}
+.spend-summary .leg { display: flex; flex-direction: column; gap: 4px; }
+.spend-summary .leg-label {
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.spend-summary .leg-value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+}
+
+/* A fact about your own money, stated calmly. Never a scolding, never red. */
+.notices { display: flex; flex-direction: column; gap: 7px; }
+.notice {
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--brass);
+  background: var(--bg-raised);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.notice strong { color: var(--ink); font-weight: 600; }
+
+.repeat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 14px;
+}
+.repeat:last-child { border-bottom: none; }
+.repeat-name { flex: 1; min-width: 0; }
+.repeat-meta { font-size: 12.5px; color: var(--ink-faint); }
+.repeat-amount { color: var(--ink-soft); white-space: nowrap; }
+
+.cat { margin-bottom: 13px; }
+.cat-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+.cat-head .money { color: var(--ink); }
+
+/* ---------- transactions ---------- */
+.txn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.txn:last-child { border-bottom: none; }
+.txn-main { flex: 1; min-width: 0; }
+.txn-merchant {
+  font-size: 14.5px;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.txn-meta {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.txn-amount {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14.5px;
+  white-space: nowrap;
+}
+.txn-amount.is-below { color: var(--ink); }
+.txn-amount.is-above { color: var(--above); }
+.txn-actions { display: flex; gap: 4px; }
+
+/* ---------- receipts ---------- */
+.receipt-zone { margin-bottom: 20px; }
+
+.receipt-drop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--line);
+  background: var(--bg);
+  color: var(--ink-soft);
+  font-size: 14px;
+  text-align: left;
+}
+.receipt-drop:hover:not(:disabled) { border-color: var(--brass); color: var(--ink); }
+.receipt-drop:disabled { opacity: 0.6; cursor: default; }
+.receipt-drop span { display: flex; flex-direction: column; gap: 5px; }
+.receipt-drop small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.receipt-icon {
+  font-size: 22px;
+  color: var(--brass);
+  opacity: 0.75;
+}
+
+.receipt-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+}
+.receipt-preview img {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+
+.receipt-chip {
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  color: var(--brass);
+  background: var(--brass-dim);
+  border: 1px solid rgba(201, 169, 97, 0.22);
+}
+.receipt-chip:hover { background: rgba(201, 169, 97, 0.22); }
+
+.receipt-full {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 92vw;
+  max-height: 92vh;
+}
+.receipt-full img {
+  max-width: 100%;
+  max-height: 80vh;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
