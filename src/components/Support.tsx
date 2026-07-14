@@ -35,11 +35,17 @@
 import { useEffect, useState } from "react";
 import { TrustBadge } from "./TrustBadge";
 
-// Copyable text and a link. No processor, no tracker, no CSP change.
+// A card link (Ko-fi, PayPal underneath) and copyable crypto addresses. No
+// processor or widget lives in the app itself — Ko-fi is a plain outbound link,
+// so there's no third-party script and no CSP change. The card option leads
+// because it's the welcoming front door for most people; crypto is the quiet
+// zero-paperwork alternative. Add more addresses by extending `crypto` — one line.
 const SUPPORT = {
-  btc: "bc1qvhzyyhjngwyc02p5ska0pk33tvn6dnq06vacgv", // device-verified on Trezor
-  eth: "0x6857f91F7Fcd7B45a3ab3A51D2CdC47E23FE8c75",
-  fiatUrl: "https://ko-fi.com/johnny65449",
+  fiatUrl: "https://ko-fi.com/johnny65449", // card / PayPal, via Ko-fi
+  crypto: [
+    { label: "Bitcoin", value: "bc1qvhzyyhjngwyc02p5ska0pk33tvn6dnq06vacgv" }, // device-verified on Trezor
+    { label: "Ethereum", value: "0x6857f91F7Fcd7B45a3ab3A51D2CdC47E23FE8c75" },
+  ],
 };
 
 function CopyRow({ label, value }: { label: string; value: string }) {
@@ -117,16 +123,18 @@ export function Support({ onClose }: { onClose: () => void }) {
             it's needed, but because it's a kind thing to do, and it makes the next project
             easier to start.
           </p>
-          <CopyRow label="Bitcoin" value={SUPPORT.btc} />
-          <CopyRow label="Ethereum" value={SUPPORT.eth} />
-          <a
-            className="support-fiat"
-            href={SUPPORT.fiatUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Prefer a card? Ko-fi →
+          {/* Card first — the front door for most people (Ko-fi, PayPal underneath;
+              works from anywhere, in any currency). */}
+          <a className="support-card" href={SUPPORT.fiatUrl} target="_blank" rel="noopener noreferrer">
+            Leave a tip with a card &nbsp;→
           </a>
+          {/* Crypto: the quiet zero-paperwork alternative. */}
+          <div className="support-crypto">
+            <span className="support-crypto-label">or, if you prefer crypto</span>
+            {SUPPORT.crypto.map((c) => (
+              <CopyRow key={c.label} label={c.label} value={c.value} />
+            ))}
+          </div>
         </div>
 
         {/* Someone reading this may be the person the app is most for. They should
