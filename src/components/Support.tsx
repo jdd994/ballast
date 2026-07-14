@@ -143,6 +143,18 @@ export function Support({ onClose }: { onClose: () => void }) {
           still can't see your money, and neither can we.
         </p>
 
+        {/* Kinship, not a catalog. One quiet line, only here in the maker's
+            corner where someone's already curious who built this. These are
+            genuinely siblings — same belief, applied to different corners of a
+            life — so saying so is telling the truth, not cross-selling. Never a
+            banner, never a count, never in the core flow. */}
+        <div className="kin">
+          <span className="kin-label">Made in the same spirit</span>
+          <a href="https://driftless-8nc.pages.dev" target="_blank" rel="noopener noreferrer">
+            Driftless — a quiet place to catch your thoughts →
+          </a>
+        </div>
+
         <div className="sheet-actions">
           <button className="btn btn-ghost" onClick={onClose}>
             Close

@@ -9,6 +9,7 @@ import { Goals, AddGoal } from "./components/Goals";
 import { Spending, ReceiptView } from "./components/Spending";
 import { AddExpense } from "./components/AddExpense";
 import { Support } from "./components/Support";
+import { InstallHint } from "./components/InstallHint";
 import { Heart } from "./components/icons";
 import type { SnapshotContent } from "./lib/ledger";
 
@@ -83,6 +84,8 @@ export default function App() {
       </header>
 
       {l.error ? <div className="error">{l.error}</div> : null}
+
+      <InstallHint />
 
       <Waterline net={l.net} currency={l.currency} asOf={lastUpdate} />
 

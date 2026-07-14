@@ -12,6 +12,7 @@
 
 import { useState } from "react";
 import { TrustBadge } from "./TrustBadge";
+import { IosSetupNote } from "./IosSetupNote";
 
 const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF", "SEK", "NZD"];
 
@@ -55,6 +56,9 @@ export function Welcome({
           </h1>
 
           <h2>Steady footing with your money.</h2>
+
+          <IosSetupNote />
+
           <p>
             Everything you put here — balances, accounts, goals — is encrypted on this device
             before it is stored anywhere. Not encrypted "in transit". Encrypted so that we
@@ -123,6 +127,8 @@ export function Welcome({
           This is the only key to your vault. A few plain words you will not forget is stronger
           than something short and clever.
         </p>
+
+        <IosSetupNote />
 
         <form onSubmit={submit}>
           {error ? <div className="error">{error}</div> : null}

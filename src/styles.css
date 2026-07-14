@@ -779,6 +779,97 @@ input.mono, input[inputmode="decimal"] {
   border: 1px solid var(--line);
 }
 
+/* ---------- install hint ----------
+   A quiet, dismissible nudge on the dashboard for Android/desktop. Never on iOS
+   (guided at setup instead) and never after install. */
+.install-hint {
+  margin-bottom: 22px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+}
+.install-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.install-text {
+  flex: 1;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.install-btn { flex-shrink: 0; }
+.install-x {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--ink-faint);
+  font-size: 15px;
+  line-height: 1;
+}
+.install-x:hover { color: var(--ink); background: var(--surface); }
+.install-steps {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+.install-steps b { color: var(--ink-soft); font-weight: 600; }
+
+/* ---------- iOS setup warning ----------
+   Not a nag — a guard against a real data-loss scare (Home Screen apps get their
+   own storage). Styled to be impossible to miss, on the brass side so it reads as
+   important-and-helpful rather than as an error. */
+.ios-note {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brass);
+  background: var(--brass-dim);
+}
+.ios-note-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ios-note-body {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.ios-note-body:last-child { margin-bottom: 0; }
+.ios-note-body b { color: var(--ink); font-weight: 600; }
+
+/* ---------- kinship line (the app family) ----------
+   One quiet line in the support sheet. Deliberately understated: kinship, not a
+   product grid, not a funnel. */
+.kin {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kin-label {
+  font-size: 11px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.kin a {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.kin a:hover { color: var(--brass); }
+
 /* ---------- support ----------
    No payment widget, no third-party script, no CSP exception. Copyable addresses
    and one plain outbound link — so tipping cannot cost you any privacy. */
