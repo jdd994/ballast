@@ -17,6 +17,58 @@ import { TrustBadge } from "./TrustBadge";
 
 type Mode = "signin" | "create";
 
+// Change the vault passphrase (only shown when there's a vault on this device).
+// Thanks to envelope encryption this re-encrypts nothing and doesn't disturb
+// sync — it just re-wraps the data key under the new passphrase.
+function ChangePassphrase({ onChange }: { onChange: (current: string, next: string) => Promise<string | null> }) {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  async function submit() {
+    setError(null);
+    if (next.length < 8) return setError("Use at least 8 characters — a few plain words you'll remember.");
+    if (next !== confirm) return setError("The new passphrases don't match.");
+    setBusy(true);
+    const err = await onChange(current, next);
+    setBusy(false);
+    if (err) return setError(err);
+    setCurrent(""); setNext(""); setConfirm(""); setOpen(false);
+    setDone(true); setTimeout(() => setDone(false), 4000);
+  }
+
+  return (
+    <div className="danger-zone">
+      <h4 className="support-sub">Passphrase</h4>
+      {done ? (
+        <p className="hint">Passphrase changed. Nothing left this device.</p>
+      ) : !open ? (
+        <button className="linklike" onClick={() => setOpen(true)}>Change your passphrase</button>
+      ) : (
+        <>
+          {error ? <div className="error">{error}</div> : null}
+          <label className="field"><span className="label">Current passphrase</span>
+            <input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} /></label>
+          <label className="field"><span className="label">New passphrase</span>
+            <input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} /></label>
+          <label className="field"><span className="label">New passphrase again</span>
+            <input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></label>
+          <div className="sheet-actions">
+            <button className="btn btn-ghost" onClick={() => { setOpen(false); setError(null); }}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy || !current || !next} onClick={submit}>
+              {busy ? "Changing…" : "Change it"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function Sync({
   account,
   syncing,
@@ -27,18 +79,21 @@ export function Sync({
   onDisconnect,
   onDelete,
   onSyncNow,
+  onChangePassphrase,
   onClose,
 }: {
   account: string | null;
   syncing: boolean;
   syncError: string | null;
-  // A vault exists on this device (so it can be connected to a new account).
+  // A vault exists on this device (so it can be connected to a new account). Also
+  // gates the change-passphrase form — that needs an unlocked vault.
   canCreate: boolean;
   onCreate: (email: string, password: string) => Promise<boolean>;
   onSignIn: (email: string, password: string) => Promise<boolean>;
   onDisconnect: () => Promise<void>;
   onDelete: () => Promise<boolean>;
   onSyncNow: () => Promise<void>;
+  onChangePassphrase: (current: string, next: string) => Promise<string | null>;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<Mode>(canCreate ? "create" : "signin");
@@ -203,6 +258,10 @@ export function Sync({
             </form>
           </>
         )}
+
+        {/* Change-passphrase lives here because this is the vault's account/
+            security surface. Only shown when there's a vault on this device. */}
+        {canCreate ? <ChangePassphrase onChange={onChangePassphrase} /> : null}
       </div>
     </div>
   );

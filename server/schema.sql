@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS vaults (
   iterations  INTEGER NOT NULL,
   identity_priv_wrapped TEXT,         -- identity private key, wrapped by the vault key (opaque)
   currency    TEXT,                   -- base display currency (plaintext, non-secret) so a new device labels money right
+  wrapped_dek TEXT,                   -- envelope: the data key (DEK) wrapped by the passphrase-derived KEK (opaque)
   created_at  INTEGER NOT NULL
 );
 

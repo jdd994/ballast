@@ -47,6 +47,12 @@ export type VaultMeta = {
   // Nothing uses these yet — see crypto.ts.
   identityPublic?: string;
   identityPrivate?: WrappedKey;
+  // Envelope encryption: the random data key (DEK) wrapped by the passphrase-
+  // derived KEK. Present on vaults created/migrated under the envelope model;
+  // ABSENT on older vaults (key derived straight from the passphrase) — those
+  // migrate on first unlock. Changing the passphrase re-wraps this without
+  // re-encrypting any data. See crypto.ts wrapVaultKey.
+  wrappedDEK?: CipherBlob;
 };
 
 // Sync bookkeeping shared by every syncable record. Plaintext, never secret.

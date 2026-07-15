@@ -47,6 +47,7 @@ export default function App() {
             onSignIn={l.connectSignIn}
             onDisconnect={l.disconnect}
             onDelete={l.deleteAccount}
+            onChangePassphrase={l.changePassphrase}
             onSyncNow={l.syncNow}
             onClose={() => setSync(false)}
           />
@@ -211,7 +212,8 @@ export default function App() {
           onSignIn={l.connectSignIn}
           onDisconnect={l.disconnect}
           onDelete={l.deleteAccount}
-          onSyncNow={l.syncNow}
+          onChangePassphrase={l.changePassphrase}
+            onSyncNow={l.syncNow}
           onClose={() => setSync(false)}
         />
       ) : null}

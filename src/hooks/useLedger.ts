@@ -21,6 +21,9 @@ import {
   sealJSON,
   exportPublicKeyB64,
   wrapPrivateKey,
+  generateDEK,
+  wrapVaultKey,
+  unwrapVaultKey,
   PBKDF2_ITERATIONS,
 } from "../lib/crypto";
 import * as db from "../lib/db";
@@ -89,6 +92,8 @@ export type Ledger = {
   disconnect: () => Promise<void>;
   // Permanently delete the account + all its server blobs. Local data stays.
   deleteAccount: () => Promise<boolean>;
+  // Change the vault passphrase (envelope re-wrap; no data re-encryption).
+  changePassphrase: (current: string, next: string) => Promise<string | null>;
   // Sync now, on demand (pull others' changes, push ours).
   syncNow: () => Promise<void>;
 
@@ -282,25 +287,30 @@ export function useLedger(): Ledger {
     setBusy(true);
     setError(null);
     try {
+      // Envelope model: a random DEK encrypts the data; the passphrase-derived
+      // KEK only wraps it, so the passphrase can change later without
+      // re-encrypting anything. The verifier validates the DEK.
       const salt = newSalt();
-      const key = await deriveKeyFromSalt(passphrase, salt, PBKDF2_ITERATIONS);
+      const kek = await deriveKeyFromSalt(passphrase, salt, PBKDF2_ITERATIONS);
+      const dek = await generateDEK();
 
       // Identity keypair from day one. Nothing uses it yet — see crypto.ts for
-      // why it exists anyway.
+      // why it exists anyway. Wrapped by the DEK so it survives a passphrase change.
       const kp = await generateIdentityKeypair();
 
       await db.saveVault({
         id: "vault",
         salt,
-        verifier: await makeVerifier(key),
+        verifier: await makeVerifier(dek),
+        wrappedDEK: await wrapVaultKey(kek, dek),
         createdAt: Date.now(),
         iterations: PBKDF2_ITERATIONS,
         currency: cur,
         identityPublic: await exportPublicKeyB64(kp.publicKey),
-        identityPrivate: await wrapPrivateKey(key, kp.privateKey),
+        identityPrivate: await wrapPrivateKey(dek, kp.privateKey),
       });
 
-      keyRef.current = key;
+      keyRef.current = dek;
       setCurrency(cur);
       setStatus("unlocked");
     } finally {
@@ -327,12 +337,34 @@ export function useLedger(): Ledger {
       try {
         const vault = await db.getVault();
         if (!vault) return false;
-        const key = await deriveKeyFromSalt(passphrase, vault.salt, vault.iterations);
-        if (!(await checkVerifier(key, vault.verifier))) {
-          setError("That passphrase doesn't open this vault.");
-          return false;
+        const kek = await deriveKeyFromSalt(passphrase, vault.salt, vault.iterations);
+
+        let dek: CryptoKey;
+        if (vault.wrappedDEK) {
+          // Envelope vault: the KEK unwraps the DEK; a wrong passphrase fails here.
+          try {
+            dek = await unwrapVaultKey(kek, vault.wrappedDEK);
+          } catch {
+            setError("That passphrase doesn't open this vault.");
+            return false;
+          }
+          if (!(await checkVerifier(dek, vault.verifier))) {
+            setError("That passphrase doesn't open this vault.");
+            return false;
+          }
+        } else {
+          // Legacy vault: the key was derived straight from the passphrase, so it
+          // IS the data key. Verify, then migrate to the envelope model in place —
+          // no data is re-encrypted (the DEK stays this key).
+          if (!(await checkVerifier(kek, vault.verifier))) {
+            setError("That passphrase doesn't open this vault.");
+            return false;
+          }
+          dek = kek;
+          await db.saveVault({ ...vault, wrappedDEK: await wrapVaultKey(kek, dek) });
         }
-        await finishUnlock(key, vault.currency);
+
+        await finishUnlock(dek, vault.currency);
         return true;
       } finally {
         setBusy(false);
@@ -416,7 +448,7 @@ export function useLedger(): Ledger {
         const { token } = await api.register(
           em,
           password,
-          { salt: vault.salt, verifier: vault.verifier, iterations: vault.iterations, currency: vault.currency },
+          { salt: vault.salt, verifier: vault.verifier, iterations: vault.iterations, currency: vault.currency, wrappedDEK: vault.wrappedDEK },
           vault.identityPublic ?? "",
           vault.identityPrivate
         );
@@ -461,6 +493,7 @@ export function useLedger(): Ledger {
             id: "vault",
             salt: dto.salt,
             verifier: dto.verifier,
+            wrappedDEK: dto.wrappedDEK ?? undefined,
             createdAt: Date.now(),
             iterations: dto.iterations ?? PBKDF2_ITERATIONS,
             currency: cur,
@@ -514,6 +547,65 @@ export function useLedger(): Ledger {
       setSyncing(false);
     }
   }, [disconnect]);
+
+  // Change the passphrase (must be unlocked). Envelope encryption makes this
+  // instant and re-encrypts NOTHING: it only re-wraps the DEK under a key from
+  // the new passphrase. Every other device keeps reading its data with the
+  // unchanged DEK, and biometric quick-unlock still works (it wraps the raw DEK).
+  // Returns an error message, or null on success.
+  const changePassphrase = useCallback(
+    async (current: string, next: string): Promise<string | null> => {
+      const dek = keyRef.current;
+      if (!dek) return "Unlock the vault first.";
+      if (next.length < 8) return "Use at least 8 characters for the new passphrase.";
+      const vault = await db.getVault();
+      if (!vault) return "No vault on this device.";
+
+      const curKek = await deriveKeyFromSalt(current, vault.salt, vault.iterations);
+      let okCurrent = false;
+      try {
+        if (vault.wrappedDEK) {
+          const a = await exportKeyRaw(await unwrapVaultKey(curKek, vault.wrappedDEK));
+          const b = await exportKeyRaw(dek);
+          okCurrent = a.length === b.length && a.every((x, i) => x === b[i]);
+        } else {
+          okCurrent = await checkVerifier(curKek, vault.verifier);
+        }
+      } catch {
+        okCurrent = false;
+      }
+      if (!okCurrent) return "That current passphrase isn't right.";
+
+      const salt = newSalt();
+      const kek = await deriveKeyFromSalt(next, salt, PBKDF2_ITERATIONS);
+      const updated = {
+        ...vault,
+        salt,
+        iterations: PBKDF2_ITERATIONS,
+        verifier: await makeVerifier(dek),
+        wrappedDEK: await wrapVaultKey(kek, dek),
+      };
+      await db.saveVault(updated);
+
+      const token = tokenRef.current;
+      if (token) {
+        try {
+          await api.updateVault(token, {
+            salt: updated.salt,
+            verifier: updated.verifier,
+            iterations: updated.iterations,
+            wrappedDEK: updated.wrappedDEK,
+          });
+        } catch (e) {
+          return e instanceof Error
+            ? `Changed on this device, but the server didn't update: ${e.message}`
+            : "Changed on this device, but the server couldn't be reached.";
+        }
+      }
+      return null;
+    },
+    []
+  );
 
   // ---- writes -------------------------------------------------------------
   // Every write goes: encrypt -> update memory -> persist ciphertext. The order
@@ -810,6 +902,7 @@ export function useLedger(): Ledger {
     connectSignIn,
     disconnect,
     deleteAccount,
+    changePassphrase,
     syncNow: runSync,
     setup,
     unlock,
