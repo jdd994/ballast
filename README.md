@@ -38,11 +38,12 @@ screen (see below). No sign-up, nothing to install from a store.
 
 ## What it's for
 
-**The north star is gratitude and helping people.**
+Ballast isn't trying to keep you here. No engagement metrics, no streaks, nothing
+sold to you. Open it, see where you stand, feel a bit steadier, and not need it
+for three months — that's it working exactly as intended.
 
-Not growth, not engagement, not revenue. If you open Ballast, see your situation
-clearly, feel a bit steadier, and then don't need it again for three months —
-that's the app working exactly as intended. It is not trying to keep you here.
+The motive underneath is simple: make something that helps, and be grateful
+you're trusting it with this.
 
 ## What it will never do
 
