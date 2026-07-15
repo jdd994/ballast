@@ -158,7 +158,7 @@ export function Support({ onClose }: { onClose: () => void }) {
             banner, never a count, never in the core flow. */}
         <div className="kin">
           <span className="kin-label">Made in the same spirit</span>
-          <a href="https://driftless-8nc.pages.dev" target="_blank" rel="noopener noreferrer">
+          <a href="https://driftless.page" target="_blank" rel="noopener noreferrer">
             Driftless — a quiet place to catch your thoughts →
           </a>
         </div>
