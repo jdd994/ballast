@@ -19,9 +19,12 @@ const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF", "SEK", "NZD
 export function Welcome({
   onSetup,
   busy,
+  onSignIn,
 }: {
   onSetup: (passphrase: string, currency: string) => Promise<void>;
   busy: boolean;
+  // Open the sync sheet to sign in to an existing account (a second device).
+  onSignIn?: () => void;
 }) {
   const [step, setStep] = useState<"intro" | "passphrase">("intro");
   const [passphrase, setPassphrase] = useState("");
@@ -111,6 +114,15 @@ export function Welcome({
           <button className="btn btn-primary" style={{ width: "100%" }} onClick={() => setStep("passphrase")}>
             Set a passphrase
           </button>
+
+          {onSignIn ? (
+            <p className="gate-alt">
+              Already set up on another device?{" "}
+              <button type="button" className="linklike" onClick={onSignIn}>
+                Sign in to sync
+              </button>
+            </p>
+          ) : null}
         </div>
       </div>
     );

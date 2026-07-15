@@ -287,6 +287,42 @@ export async function dirtyRecords(): Promise<{
   };
 }
 
+// ---- generic sync accessors ---------------------------------------------
+// The sync engine treats the four syncable object stores uniformly (a kind + an
+// id). These map a kind to its store and give get/put/clear-dirty/mark-all by
+// kind, so lib/sync.ts stays small. (media + memory are not synced in v1.)
+
+export type SyncKind = "account" | "snapshot" | "transaction" | "goal";
+export type AnyStored = StoredAccount | StoredSnapshot | StoredTransaction | StoredGoal;
+const KIND_STORE: Record<SyncKind, "accounts" | "snapshots" | "transactions" | "goals"> = {
+  account: "accounts", snapshot: "snapshots", transaction: "transactions", goal: "goals",
+};
+export const SYNC_KINDS: SyncKind[] = ["account", "snapshot", "transaction", "goal"];
+
+export async function getStoredByKind(kind: SyncKind, id: string): Promise<AnyStored | undefined> {
+  return (await db()).get(KIND_STORE[kind], id) as Promise<AnyStored | undefined>;
+}
+export async function putStoredByKind(kind: SyncKind, rec: AnyStored): Promise<void> {
+  // idb's types are per-literal-store; the runtime store is chosen by kind.
+  await (await db()).put(KIND_STORE[kind], rec as never);
+}
+// Clear the dirty flag after a successful push — only if the record hasn't
+// changed since (updatedAt still matches), so a mid-sync edit is never dropped.
+export async function clearDirtyByKind(kind: SyncKind, id: string, updatedAt: number): Promise<void> {
+  const d = await db();
+  const rec = await d.get(KIND_STORE[kind], id);
+  if (rec && rec.dirty && rec.updatedAt === updatedAt) await d.put(KIND_STORE[kind], { ...rec, dirty: false } as never);
+}
+// Mark every syncable record dirty — used when connecting a NEW account, so the
+// whole local vault uploads even if it was previously synced elsewhere.
+export async function markAllDirty(): Promise<void> {
+  const d = await db();
+  for (const kind of SYNC_KINDS) {
+    const store = KIND_STORE[kind];
+    for (const r of await d.getAll(store)) if (!r.dirty) await d.put(store, { ...r, dirty: true } as never);
+  }
+}
+
 // Every store, in one place. Both `wipe` and any future migration must cover all
 // of them — a "wipe" that leaves receipt photos behind would be a serious lie.
 const ALL_STORES = [

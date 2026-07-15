@@ -1,0 +1,14 @@
+name = "ballast-server"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Fill database_id after: npx wrangler d1 create ballast
+[[d1_databases]]
+binding = "DB"
+database_name = "ballast"
+database_id = "5955e223-7091-4936-a1b6-542fdeffd993"
+
+[vars]
+# Comma-separated CORS allowlist of origins allowed to call this API.
+# TOKEN_SECRET is a *secret*, set separately:  npx wrangler secret put TOKEN_SECRET
+ALLOWED_ORIGIN = "https://ballast.gold,https://getballast.pages.dev"

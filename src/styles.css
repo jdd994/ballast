@@ -984,3 +984,48 @@ input.mono, input[inputmode="decimal"] {
   color: var(--ink-faint) !important;
 }
 .support-note .tier { flex-shrink: 0; margin-top: 1px; }
+
+/* Sync sheet — segmented toggle between "new account" and "sign in". */
+.seg {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  margin: 14px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.seg-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+.seg-btn[aria-pressed="true"] {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+/* A quiet secondary line under the primary call to action (e.g. "sign in to
+   sync" on first run). */
+.gate-alt {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+.linklike {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--brass);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.linklike:hover { color: var(--ink); }

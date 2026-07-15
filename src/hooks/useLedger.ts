@@ -46,6 +46,8 @@ import type { Transaction, TransactionContent } from "../lib/spend";
 import { remember, suggestCategory, type MerchantMemory, type Suggestion } from "../lib/categorize";
 import { compressImage, dataUrl } from "../lib/media";
 import { encryptBytes, decryptBytes } from "../lib/crypto";
+import * as api from "../lib/api";
+import { syncNow } from "../lib/sync";
 
 export type Status = "loading" | "setup" | "locked" | "unlocked";
 
@@ -70,6 +72,23 @@ export type Ledger = {
 
   canBiometric: boolean;
   hasBiometric: boolean;
+
+  // Cross-device sync. `account` is the connected email, or null when this vault
+  // lives only on this device. The account secret (login) is separate from the
+  // passphrase (invariant #5): the server authenticates the account and stores
+  // opaque ciphertext; the passphrase decrypts it and never leaves the device.
+  account: string | null;
+  syncing: boolean;
+  syncError: string | null;
+  // Connect THIS device's existing vault to a new account (first device).
+  connectCreate: (email: string, password: string) => Promise<boolean>;
+  // Sign in to an existing account (a second device). Pulls the vault down; the
+  // user then unlocks it with the same passphrase.
+  connectSignIn: (email: string, password: string) => Promise<boolean>;
+  // Stop syncing from this device. Local data stays; nothing is deleted.
+  disconnect: () => Promise<void>;
+  // Sync now, on demand (pull others' changes, push ours).
+  syncNow: () => Promise<void>;
 
   setup: (passphrase: string, currency: string) => Promise<void>;
   unlock: (passphrase: string) => Promise<boolean>;
@@ -105,6 +124,13 @@ export function useLedger(): Ledger {
   // in devtools and in error-boundary payloads; a ref stays put.
   const keyRef = useRef<CryptoKey | null>(null);
 
+  // The sync auth token. Like the key, it lives in a ref, not in React state.
+  const tokenRef = useRef<string | null>(null);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [account, setAccount] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
   const [status, setStatus] = useState<Status>("loading");
   const [currency, setCurrency] = useState("USD");
   const [error, setError] = useState<string | null>(null);
@@ -124,13 +150,18 @@ export function useLedger(): Ledger {
   // double-invoke in dev is harmless.
   useEffect(() => {
     (async () => {
-      const [vault, device, supported] = await Promise.all([
+      const [vault, device, supported, sync] = await Promise.all([
         db.getVault(),
         db.getDevice(),
         biometricSupported(),
+        db.getSyncState(),
       ]);
       setCanBiometric(supported);
       setHasBiometric(!!device);
+      if (sync?.token) {
+        tokenRef.current = sync.token;
+        setAccount(sync.accountEmail ?? null);
+      }
       if (vault) {
         setCurrency(vault.currency);
         setStatus("locked");
@@ -211,6 +242,38 @@ export function useLedger(): Ledger {
     []
   );
 
+  // ---- sync ---------------------------------------------------------------
+  // Reconcile with the server: pull others' changes (LWW by updatedAt), then
+  // push ours. Only ciphertext moves — the key never leaves this device. If the
+  // pull changed anything, re-decrypt the view so the screen matches the vault.
+  const runSync = useCallback(async () => {
+    const token = tokenRef.current;
+    const key = keyRef.current;
+    if (!token || !key) return;
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const changed = await syncNow(token);
+      if (changed) {
+        const { snaps } = await loadAll(key);
+        void loadPrices(snaps, currency);
+      }
+    } catch (e) {
+      // A failed sync is never fatal: the data is safe locally and dirty records
+      // stay dirty, so the next attempt retries them.
+      setSyncError(e instanceof Error ? e.message : "Couldn't reach sync just now.");
+    } finally {
+      setSyncing(false);
+    }
+  }, [loadAll, loadPrices, currency]);
+
+  // Debounced sync after a write. Coalesces a burst of edits into one round-trip.
+  const scheduleSync = useCallback(() => {
+    if (!tokenRef.current) return;
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => void runSync(), 1500);
+  }, [runSync]);
+
   // ---- setup / unlock / lock ---------------------------------------------
 
   const setup = useCallback(async (passphrase: string, cur: string) => {
@@ -249,8 +312,10 @@ export function useLedger(): Ledger {
       const { snaps } = await loadAll(key);
       setStatus("unlocked");
       void loadPrices(snaps, cur);
+      // If this device is connected, sync on unlock so it opens up to date.
+      if (tokenRef.current) void runSync();
     },
-    [loadAll, loadPrices]
+    [loadAll, loadPrices, runSync]
   );
 
   const unlock = useCallback(
@@ -325,6 +390,110 @@ export function useLedger(): Ledger {
     setStatus("locked");
   }, []);
 
+  // ---- account (sync) -----------------------------------------------------
+
+  // Connect this device's existing vault to a NEW account. The passphrase is
+  // never sent — only the salt + verifier (which reveal nothing) so the same
+  // vault can be re-derived on another device. The account password is a
+  // separate secret that only authenticates the account (invariant #5).
+  const connectCreate = useCallback(
+    async (email: string, password: string): Promise<boolean> => {
+      setSyncError(null);
+      const em = email.trim().toLowerCase();
+      const vault = await db.getVault();
+      if (!vault) {
+        setSyncError("Set up your vault on this device first.");
+        return false;
+      }
+      if (!vault.identityPrivate) {
+        setSyncError("This vault predates sync. Re-create it to connect an account.");
+        return false;
+      }
+      setSyncing(true);
+      try {
+        const { token } = await api.register(
+          em,
+          password,
+          { salt: vault.salt, verifier: vault.verifier, iterations: vault.iterations, currency: vault.currency },
+          vault.identityPublic ?? "",
+          vault.identityPrivate
+        );
+        tokenRef.current = token;
+        setAccount(em);
+        const st = await db.getSyncState();
+        await db.saveSyncState({ id: "state", cursor: st?.cursor ?? 0, token, accountEmail: em });
+        // Nothing here has been seen by the server yet — mark it all dirty so the
+        // first push uploads the whole vault.
+        await db.markAllDirty();
+        await runSync();
+        return true;
+      } catch (e) {
+        setSyncError(e instanceof Error ? e.message : "Couldn't create that account.");
+        return false;
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [runSync]
+  );
+
+  // Sign in to an existing account from a second device. Downloads the vault
+  // metadata (salt + verifier) so the passphrase can re-derive the same key
+  // here. On a fresh device this installs the vault and drops to the lock
+  // screen; unlocking then pulls the ciphertext down.
+  const connectSignIn = useCallback(
+    async (email: string, password: string): Promise<boolean> => {
+      setSyncError(null);
+      const em = email.trim().toLowerCase();
+      setSyncing(true);
+      try {
+        const { token } = await api.login(em, password);
+        const dto = await api.fetchVault(token);
+        tokenRef.current = token;
+        setAccount(em);
+
+        const local = await db.getVault();
+        if (!local) {
+          const cur = dto.currency ?? "USD";
+          await db.saveVault({
+            id: "vault",
+            salt: dto.salt,
+            verifier: dto.verifier,
+            createdAt: Date.now(),
+            iterations: dto.iterations ?? PBKDF2_ITERATIONS,
+            currency: cur,
+            identityPrivate: dto.identityPrivWrapped ?? undefined,
+          });
+          setCurrency(cur);
+          setStatus("locked");
+        }
+        // cursor 0 so the first sync pulls the whole history down.
+        await db.saveSyncState({ id: "state", cursor: 0, token, accountEmail: em });
+        if (keyRef.current) await runSync();
+        return true;
+      } catch (e) {
+        tokenRef.current = null;
+        setAccount(null);
+        setSyncError(e instanceof Error ? e.message : "Couldn't sign in.");
+        return false;
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [runSync]
+  );
+
+  // Stop syncing from this device. Local data and the vault stay put; only the
+  // token and cursor are dropped, so no more ciphertext moves either way.
+  const disconnect = useCallback(async () => {
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    tokenRef.current = null;
+    setAccount(null);
+    setSyncError(null);
+    const st = await db.getSyncState();
+    await db.saveSyncState({ id: "state", cursor: st?.cursor ?? 0 });
+  }, []);
+
   // ---- writes -------------------------------------------------------------
   // Every write goes: encrypt -> update memory -> persist ciphertext. The order
   // matters. The UI must never wait on IndexedDB to feel responsive, and
@@ -353,8 +522,9 @@ export function useLedger(): Ledger {
       if (content.type === "holding") {
         void loadPrices([snap], currency);
       }
+      scheduleSync();
     },
-    [currency, loadPrices]
+    [currency, loadPrices, scheduleSync]
   );
 
   const addAccount = useCallback(
@@ -386,6 +556,7 @@ export function useLedger(): Ledger {
           if (connector.read) seed = await connector.read(content.source);
         }
         if (seed) await recordSnapshot(id, seed);
+        scheduleSync();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Couldn't add that account.");
         throw e;
@@ -393,7 +564,7 @@ export function useLedger(): Ledger {
         setBusy(false);
       }
     },
-    [recordSnapshot]
+    [recordSnapshot, scheduleSync]
   );
 
   const removeAccount = useCallback(async (id: string) => {
@@ -411,7 +582,8 @@ export function useLedger(): Ledger {
     for (const s of await db.snapshotsForAccount(id)) {
       await db.putStoredSnapshot({ ...s, deleted: true, dirty: true, updatedAt: Date.now() });
     }
-  }, []);
+    scheduleSync();
+  }, [scheduleSync]);
 
   const refreshAccount = useCallback(
     async (id: string) => {
@@ -510,6 +682,7 @@ export function useLedger(): Ledger {
             content: await sealJSON(key, next),
           });
         }
+        scheduleSync();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Couldn't save that.");
         throw e;
@@ -517,7 +690,7 @@ export function useLedger(): Ledger {
         setBusy(false);
       }
     },
-    [memory]
+    [memory, scheduleSync]
   );
 
   const removeTransaction = useCallback(async (id: string) => {
@@ -534,7 +707,8 @@ export function useLedger(): Ledger {
       const content = await openJSON<TransactionContent>(key, target.content);
       if (content.receiptId) await db.deleteMedia(content.receiptId);
     }
-  }, []);
+    scheduleSync();
+  }, [scheduleSync]);
 
   const loadReceipt = useCallback(async (mediaId: string): Promise<string | null> => {
     const key = keyRef.current;
@@ -568,7 +742,8 @@ export function useLedger(): Ledger {
       dirty: true,
       content: await sealJSON(key, content),
     });
-  }, []);
+    scheduleSync();
+  }, [scheduleSync]);
 
   const removeGoal = useCallback(async (id: string) => {
     setGoals((prev) => prev.filter((g) => g.id !== id));
@@ -576,7 +751,8 @@ export function useLedger(): Ledger {
     if (stored) {
       await db.putStoredGoal({ ...stored, deleted: true, dirty: true, updatedAt: Date.now() });
     }
-  }, []);
+    scheduleSync();
+  }, [scheduleSync]);
 
   // ---- derived ------------------------------------------------------------
 
@@ -606,6 +782,13 @@ export function useLedger(): Ledger {
     progressFor,
     canBiometric,
     hasBiometric,
+    account,
+    syncing,
+    syncError,
+    connectCreate,
+    connectSignIn,
+    disconnect,
+    syncNow: runSync,
     setup,
     unlock,
     unlockWithBiometric,
