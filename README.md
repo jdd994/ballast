@@ -8,7 +8,17 @@ they are stored anywhere. Not "encrypted in transit" — encrypted so that a bre
 of the server yields nothing but noise, and so that we could not read your
 finances if we wanted to.
 
-Sibling project to [Driftless](../driftless). Same soul, different job.
+Sibling project to [Driftless](https://driftless.page). Same soul, different job.
+
+**→ [ballast.gold](https://ballast.gold)** — open it and add it to your home
+screen (see below). No sign-up, nothing to install from a store.
+
+> **Local-only for now.** Ballast lives entirely on the device you open it on —
+> each device keeps its own private vault, and there's no server holding your
+> data. Cross-device sync is the next chapter (the model is already proven in
+> Driftless): the client encrypts, a tiny server stores only opaque ciphertext,
+> devices reconcile. Until then, your money stays on one device (use **Back up**
+> to move it).
 
 ---
 
@@ -76,13 +86,25 @@ recover your data. Write it down and keep it somewhere safe.
 
 That's the price of the guarantee. We'd rather you hear it now than later.
 
-## Running it
+## Install to your home screen
+
+Open **[ballast.gold](https://ballast.gold)**, then:
+
+- **iPhone/iPad (Safari):** Share → Add to Home Screen. (Set up your vault *in*
+  the installed app — it'll remind you — so it isn't left in the Safari tab.)
+- **Android (Chrome):** menu → Install app / Add to Home Screen.
+- **Desktop (Chrome/Edge):** the install icon in the address bar.
+
+It then launches full-screen like a native app and works offline.
+
+## Running it locally
 
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # the money math
+npm run test     # the money math (exact minor-units, net worth, goal projection)
 npm run build
+npm run deploy   # build + ship to Cloudflare Pages
 ```
 
 ## How it's built
