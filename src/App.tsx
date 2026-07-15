@@ -46,6 +46,7 @@ export default function App() {
             onCreate={l.connectCreate}
             onSignIn={l.connectSignIn}
             onDisconnect={l.disconnect}
+            onDelete={l.deleteAccount}
             onSyncNow={l.syncNow}
             onClose={() => setSync(false)}
           />
@@ -209,6 +210,7 @@ export default function App() {
           onCreate={l.connectCreate}
           onSignIn={l.connectSignIn}
           onDisconnect={l.disconnect}
+          onDelete={l.deleteAccount}
           onSyncNow={l.syncNow}
           onClose={() => setSync(false)}
         />

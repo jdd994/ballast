@@ -1029,3 +1029,11 @@ input.mono, input[inputmode="decimal"] {
   text-underline-offset: 2px;
 }
 .linklike:hover { color: var(--ink); }
+
+/* Deleting a synced account — deliberately understated, below the fold of the
+   everyday controls, and gated behind a confirm. */
+.danger-zone { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.linklike.danger { color: var(--below); font-size: 12.5px; text-decoration: none; }
+.linklike.danger:hover { color: var(--ink); text-decoration: underline; }
+.btn-danger { background: none; border: 1px solid var(--below); color: var(--below); }
+.btn-danger:hover:not(:disabled) { background: var(--below-dim); color: var(--ink); }

@@ -87,6 +87,8 @@ export type Ledger = {
   connectSignIn: (email: string, password: string) => Promise<boolean>;
   // Stop syncing from this device. Local data stays; nothing is deleted.
   disconnect: () => Promise<void>;
+  // Permanently delete the account + all its server blobs. Local data stays.
+  deleteAccount: () => Promise<boolean>;
   // Sync now, on demand (pull others' changes, push ours).
   syncNow: () => Promise<void>;
 
@@ -494,6 +496,25 @@ export function useLedger(): Ledger {
     await db.saveSyncState({ id: "state", cursor: st?.cursor ?? 0 });
   }, []);
 
+  // Permanently delete the account and every blob on the server, then disconnect.
+  // Local data stays on this device — only the cloud copy is removed.
+  const deleteAccount = useCallback(async (): Promise<boolean> => {
+    const token = tokenRef.current;
+    if (!token) return false;
+    setSyncError(null);
+    setSyncing(true);
+    try {
+      await api.deleteAccount(token);
+      await disconnect();
+      return true;
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : "Couldn't delete the account.");
+      return false;
+    } finally {
+      setSyncing(false);
+    }
+  }, [disconnect]);
+
   // ---- writes -------------------------------------------------------------
   // Every write goes: encrypt -> update memory -> persist ciphertext. The order
   // matters. The UI must never wait on IndexedDB to feel responsive, and
@@ -788,6 +809,7 @@ export function useLedger(): Ledger {
     connectCreate,
     connectSignIn,
     disconnect,
+    deleteAccount,
     syncNow: runSync,
     setup,
     unlock,
